@@ -2103,6 +2103,88 @@
         </div>
     </div>
 
+    <!-- Add User Modal -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-modal" onclick="closeAddUser()">×</button>
+            <div class="modal-header">
+                <h3>👤 Add New User</h3>
+                <p>Create a new user account for the CRM system</p>
+            </div>
+            
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label>Full Name*</label>
+                        <input type="text" id="newUserName" placeholder="Enter full name..." required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email Address*</label>
+                        <input type="email" id="newUserEmail" placeholder="Enter email address..." required>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Role*</label>
+                            <select id="newUserRole" required>
+                                <option value="">Select role...</option>
+                                <option value="user">User</option>
+                                <option value="manager">Manager</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Department*</label>
+                            <select id="newUserDepartment" required>
+                                <option value="">Select department...</option>
+                                <option value="Investment">Investment</option>
+                                <option value="Research">Research</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Administration">Administration</option>
+                                <option value="Technology">Technology</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Temporary Password*</label>
+                        <input type="password" id="newUserPassword" placeholder="Enter temporary password..." required minlength="12" oninput="checkNewUserPasswordStrength()">
+                        <div style="font-size: 0.8em; margin-top: 10px;">
+                            <div style="color: #dc3545;" id="newUserPasswordRequirements">
+                                <div>❌ At least 12 characters</div>
+                                <div>❌ One uppercase letter</div>
+                                <div>❌ One lowercase letter</div>
+                                <div>❌ One number</div>
+                                <div>❌ One special character</div>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.8em; color: #666; margin-top: 8px;">
+                            User will be required to change this password on first login
+                        </p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="checkbox" id="newUserActive" checked style="width: auto;">
+                            Account Active (user can login immediately)
+                        </label>
+                    </div>
+                    
+                    <div id="addUserError" style="color: #dc3545; margin: 15px 0; display: none;"></div>
+                    
+                    <div class="button-group" style="margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeAddUser()">Cancel</button>
+                        <button type="button" class="btn btn-success" onclick="createUser()" id="createUserBtn">
+                            ➕ Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Configuration
         const CONFIG = {
@@ -3921,7 +4003,144 @@
         }
 
         async function showAddUser() {
-            showMessage('Add user functionality coming soon!', 'info');
+            // Check permissions
+            if (currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+                showMessage('❌ Access denied. Admin or Manager role required to add users.', 'error');
+                return;
+            }
+            
+            // Reset form
+            document.getElementById('addUserForm').reset();
+            document.getElementById('newUserActive').checked = true;
+            document.getElementById('addUserError').style.display = 'none';
+            
+            // Reset password requirements display
+            document.getElementById('newUserPasswordRequirements').innerHTML = `
+                <div style="color: #dc3545;">❌ At least 12 characters</div>
+                <div style="color: #dc3545;">❌ One uppercase letter</div>
+                <div style="color: #dc3545;">❌ One lowercase letter</div>
+                <div style="color: #dc3545;">❌ One number</div>
+                <div style="color: #dc3545;">❌ One special character</div>
+            `;
+            
+            // Show modal
+            document.getElementById('addUserModal').classList.add('show');
+            resetSessionTimer();
+        }
+
+        function closeAddUser() {
+            document.getElementById('addUserModal').classList.remove('show');
+        }
+
+        function checkNewUserPasswordStrength() {
+            const password = document.getElementById('newUserPassword').value;
+            const requirements = document.getElementById('newUserPasswordRequirements');
+            
+            if (!password) {
+                requirements.innerHTML = `
+                    <div style="color: #dc3545;">❌ At least 12 characters</div>
+                    <div style="color: #dc3545;">❌ One uppercase letter</div>
+                    <div style="color: #dc3545;">❌ One lowercase letter</div>
+                    <div style="color: #dc3545;">❌ One number</div>
+                    <div style="color: #dc3545;">❌ One special character</div>
+                `;
+                return;
+            }
+            
+            const validation = validatePasswordStrength(password);
+            
+            requirements.innerHTML = `
+                <div style="color: ${validation.requirements.length ? '#28a745' : '#dc3545'};">${validation.requirements.length ? '✅' : '❌'} At least 12 characters</div>
+                <div style="color: ${validation.requirements.uppercase ? '#28a745' : '#dc3545'};">${validation.requirements.uppercase ? '✅' : '❌'} One uppercase letter</div>
+                <div style="color: ${validation.requirements.lowercase ? '#28a745' : '#dc3545'};">${validation.requirements.lowercase ? '✅' : '❌'} One lowercase letter</div>
+                <div style="color: ${validation.requirements.number ? '#28a745' : '#dc3545'};">${validation.requirements.number ? '✅' : '❌'} One number</div>
+                <div style="color: ${validation.requirements.special ? '#28a745' : '#dc3545'};">${validation.requirements.special ? '✅' : '❌'} One special character</div>
+            `;
+        }
+
+        async function createUser() {
+            const name = document.getElementById('newUserName').value.trim();
+            const email = document.getElementById('newUserEmail').value.trim();
+            const role = document.getElementById('newUserRole').value;
+            const department = document.getElementById('newUserDepartment').value;
+            const password = document.getElementById('newUserPassword').value;
+            const active = document.getElementById('newUserActive').checked;
+            const errorDiv = document.getElementById('addUserError');
+            const createBtn = document.getElementById('createUserBtn');
+
+            // Clear previous errors
+            errorDiv.style.display = 'none';
+
+            // Validation
+            if (!name || !email || !role || !department || !password) {
+                errorDiv.textContent = 'Please fill in all required fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Email validation
+            if (!email.includes('@') || !email.includes('.')) {
+                errorDiv.textContent = 'Please enter a valid email address';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Password validation
+            const passwordValidation = validatePasswordStrength(password);
+            if (passwordValidation.score < 5) {
+                errorDiv.textContent = 'Password does not meet all security requirements';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Check if email already exists
+            const existingUser = allUsers.find(user => user.email.toLowerCase() === email.toLowerCase());
+            if (existingUser) {
+                errorDiv.textContent = 'A user with this email address already exists';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Disable button and show loading
+            createBtn.disabled = true;
+            createBtn.classList.add('btn-loading');
+            createBtn.textContent = 'Creating...';
+
+            try {
+                console.log('Creating new user:', { name, email, role, department, active });
+
+                const result = await makeJSONPRequest('addUser', {
+                    name: name,
+                    email: email,
+                    role: role,
+                    department: department,
+                    password: password,
+                    active: active,
+                    createdBy: currentUser.email,
+                    requirePasswordChange: true
+                });
+
+                console.log('Add user result:', result);
+
+                if (result.success) {
+                    closeAddUser();
+                    showMessage(`✅ User "${name}" created successfully!`, 'success');
+                    
+                    // Reload users to show the new user
+                    await loadUsers();
+                } else {
+                    throw new Error(result.error || 'Failed to create user');
+                }
+
+            } catch (error) {
+                console.error('Error creating user:', error);
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                createBtn.disabled = false;
+                createBtn.classList.remove('btn-loading');
+                createBtn.textContent = '➕ Create User';
+            }
         }
 
         async function toggleUserStatus(email, currentStatus) {
@@ -4093,6 +4312,7 @@
                 if (e.target.id === 'notesModal') closeNotesModal();
                 if (e.target.id === 'changePasswordModal') closeChangePassword();
                 if (e.target.id === 'userManagementModal') closeUserManagement();
+                if (e.target.id === 'addUserModal') closeAddUser();
             }
         });
 
